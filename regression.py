@@ -9,8 +9,8 @@ NUM_FEATURES = 3
 INITIAL_ETA = 0.03 #0.03 and lower works, but 0.1 too big -> weights go to large negative values, big error
 ETA_DIVISION = 10
 EPOCH_LENGTH = 1000
-NUM_EPOCHS = 5
-NUMERICAL_GRAD_DELTA = pow(10,-15)
+NUM_EPOCHS = 10
+NUMERICAL_GRAD_DELTA = pow(10,-5)#pow(10,-15)
 
 # def load():
 # 	features = np.array(pd.read_csv(INPUT_PATH, usecols = [i for i in range(NUM_FEATURES)]))
@@ -66,6 +66,10 @@ def train_gradient_descent(features, labels, error_func, grad_func, initial_eta,
 		print("\tweights after update:\n"+str(weights))
 		print("\tloss after update: "+str(loss))
 
+		#compare different grad methods:
+		print("\nend of epoch gradient based on calculated formula:\n"+str(mean_squared_gradient(features, labels, weights)))
+		print("\nend of epoch gradient from numerical method:\n"+str(numerical_gradient(mean_squared_loss_weights, features, labels, weights)))
+
 	return weights
 
 #mean squared loss: use the same coefficients as for gradient and MLE calculations
@@ -84,14 +88,18 @@ def mean_squared_loss_weights(features, labels, weights):
 
 #gradient for the mean squared error with respect to weights, at the current feature/label/weight position
 def mean_squared_gradient(features, labels, weights):
-	return weights #DUMMY
+	predictions = predict_linear_all(features, weights)
+	errors = predictions - labels
+	return np.matmul(features.transpose(), errors) / features.shape[0]
 
 #if we don't know the gradient of some function, can directly measure
-def empirical_gradient_of(lossfunc):
-	return lambda features, labels, weights: empirical_gradient(lossfunc, features, labels, weights)
+def numerical_gradient_of(lossfunc):
+	return lambda features, labels, weights: numerical_gradient(lossfunc, features, labels, weights)
 
-def empirical_gradient(lossfunc, features, labels, weights):
-	delta = NUMERICAL_GRAD_DELTA
+#gradient of some loss function with respect to the weights
+#must be a lossfunc form with weight argument like mean_squared_loss_weights(features, labels, weights). not mean_squared_loss(predictions, labels)
+def numerical_gradient(lossfunc, features, labels, weights):
+	delta = NUMERICAL_GRAD_DELTA 
 	grad = np.zeros(weights.shape)
 	loss_base = lossfunc(features, labels, weights)
 	for i in range(weights.size):
@@ -134,7 +142,6 @@ def single_test_train(train_fraction, loss, grad):
 def statistics():
 	return
 
-
 #augmented form for calculations with bias: add a column of 1 at the beginning
 #original is a numpy 2d array
 def augment(original):
@@ -161,4 +168,5 @@ def divide_feature_label(data):
 	return (X_aug, Y)
 
 def main():
-	single_test_train(0.7,mean_squared_loss_weights,empirical_gradient_of(mean_squared_loss_weights))
+	#single_test_train(0.7,mean_squared_loss_weights,numerical_gradient_of(mean_squared_loss_weights))
+	single_test_train(0.7,mean_squared_loss_weights, mean_squared_gradient)
