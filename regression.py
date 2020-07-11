@@ -138,6 +138,35 @@ def single_test_train(train_fraction, loss, grad):
 
 	return #should it return anything? maybe return the final weights and statistics
 
+#regression where target is two numbers - loss will be sum of squared vector differences
+#use the first 2 features as features, second 2 as labels
+#gradient and error functions must now handle Y of shape (N,2) instead of (N,1)
+def two_numerical_targets_regression(train_fraction, loss, grad):
+	fulldata = pd.read_csv(INPUT_PATH, header=None)
+	train_data = fulldata.sample(frac=train_fraction)
+	test_data = fulldata.drop(train_data.index)
+
+	train_X_aug, train_Y = divide_2_feature_2_label(train_data)
+	test_X_aug, test_Y = divide_2_feature_2_label(test_data)
+
+	#train, then test
+	#should predicting and computing loss be combined? both involve predicting.
+
+	weights = train_gradient_descent(train_X_aug, train_Y, loss, grad, INITIAL_ETA, ETA_DIVISION, EPOCH_LENGTH, NUM_EPOCHS)
+	predictions_train = predict_linear_all(train_X_aug, weights)
+
+	train_loss = loss(train_X_aug, train_Y, weights)
+	print("loss on training set: "+str(train_loss))
+	print("truth - prediction")
+	print(np.concatenate((train_Y, predictions_train), axis = 1))
+
+	predictions_test = predict_linear_all(test_X_aug, weights)
+	test_loss = loss(test_X_aug, test_Y, weights)
+	print("loss on test set: "+str(test_loss))
+	print("truth - prediction")
+	print(np.concatenate((test_Y, predictions_test), axis = 1))
+
+
 #whatever statistics we want: accuracy etc 
 def statistics():
 	return
@@ -167,6 +196,19 @@ def divide_feature_label(data):
 	X_aug = augment(X)
 	return (X_aug, Y)
 
+#feature is first 2 numbers, label is next 2. still drop the flower classes
+#features mapping by indes: 0,1 -> 2,3	with 4 discarded
+def divide_2_feature_2_label(data):
+	classes = data.pop(4) #currently not using this
+	Y_2 = to_2d_column_vec(np.array(data.pop(3)))
+	Y_1 = to_2d_column_vec(np.array(data.pop(2)))
+	Y = np.concatenate((Y_1,Y_2), axis = 1)
+	X = np.array(data)
+	X_aug = augment(X)
+	return (X_aug, Y)
+
+
 def main():
-	#single_test_train(0.7,mean_squared_loss_weights,numerical_gradient_of(mean_squared_loss_weights))
-	single_test_train(0.7,mean_squared_loss_weights, mean_squared_gradient)
+	#single_test_train(0.7, mean_squared_loss_weights,numerical_gradient_of(mean_squared_loss_weights))
+	#single_test_train(0.7, mean_squared_loss_weights, mean_squared_gradient)
+	two_numerical_targets_regression(0.7, mean_squared_loss_weights, mean_squared_gradient)
