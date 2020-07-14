@@ -5,7 +5,9 @@ import numpy as np
 #4 features: predict 4th feature from the first 3
 
 INPUT_PATH = "iris.data"
-NUM_FEATURES = 3
+#NUM_FEATURES = 3
+NUM_CLASSES = 3
+CLASS_NAMES = ["Iris-setosa", "Iris-versicolor", "Iris-virginica"]
 INITIAL_ETA = 0.03 #0.03 and lower works, but 0.1 too big -> weights go to large negative values, big error
 ETA_DIVISION = 10
 EPOCH_LENGTH = 1000
@@ -167,7 +169,7 @@ def length_squared(vec):
 
 #using some fraction of data (randomly selected) as training set:
 #train the model, test on remaining data, report statistics
-def single_test_train(train_fraction, loss, grad):
+def single_test_train(train_fraction, loss, grad, compare_grad=None):
 	fulldata = pd.read_csv(INPUT_PATH, header=None)
 	train_data = fulldata.sample(frac=train_fraction)
 	test_data = fulldata.drop(train_data.index)
@@ -178,7 +180,7 @@ def single_test_train(train_fraction, loss, grad):
 	#train, then test
 	#should predicting and computing loss be combined? both involve predicting.
 
-	weights = train_gradient_descent(train_X_aug, train_Y, loss, grad, INITIAL_ETA, ETA_DIVISION, EPOCH_LENGTH, NUM_EPOCHS)
+	weights = train_gradient_descent(train_X_aug, train_Y, loss, grad, INITIAL_ETA, ETA_DIVISION, EPOCH_LENGTH, NUM_EPOCHS, compare_grad)
 	predictions_train = predict_linear_all(train_X_aug, weights)
 
 	train_loss = loss(train_X_aug, train_Y, weights)
@@ -212,19 +214,100 @@ def two_numerical_targets_regression(train_fraction, loss, grad, compare_grad=No
 	predictions_train = predict_linear_all(train_X_aug, weights)
 
 	train_loss = loss(train_X_aug, train_Y, weights)
-	print("loss on training set: "+str(train_loss))
+	print("\nloss on training set: "+str(train_loss))
 	print("truth - prediction")
 	print(np.concatenate((train_Y, predictions_train), axis = 1))
 
 	predictions_test = predict_linear_all(test_X_aug, weights)
 	test_loss = loss(test_X_aug, test_Y, weights)
-	print("loss on test set: "+str(test_loss))
+	print("\nloss on test set: "+str(test_loss))
 	print("truth - prediction")
 	print(np.concatenate((test_Y, predictions_test), axis = 1))
+
+#classify with linear model
+#classes go to "one hot" vectors as the features. to predict, take highest scoring class
+#actually we need only n-1 vectors for n classes - is saving a variable worth more complicated equation?
+
+#split into two classes: then can use single target variable with +/- 1.
+def classify_binary(train_fraction, loss, grad, compare_grad=None):
+	#data format: f1, f2, f3, f4, class
+	#classs into 
+	fulldata = pd.read_csv(INPUT_PATH, header=None)
+	train_data = fulldata.sample(frac=train_fraction)
+	test_data = fulldata.drop(train_data.index)
+
+	train_X_aug, train_Y = divide_classification_binary(train_data)
+	test_X_aug, test_Y = divide_classification_binary(test_data)
+
+	weights = train_gradient_descent(train_X_aug, train_Y, loss, grad, INITIAL_ETA, ETA_DIVISION, EPOCH_LENGTH, NUM_EPOCHS, compare_grad)
+	predictions_train = predict_linear_all(train_X_aug, weights)
+
+	train_loss = loss(train_X_aug, train_Y, weights)
+	print("\nloss on training set: "+str(train_loss))
+	print("truth - prediction")
+	print(np.concatenate((train_Y, predictions_train), axis = 1))
+
+	predictions_test = predict_linear_all(test_X_aug, weights)
+	test_loss = loss(test_X_aug, test_Y, weights)
+	print("\nloss on test set: "+str(test_loss))
+	print("truth - prediction")
+	print(np.concatenate((test_Y, predictions_test), axis = 1))
+
+#class is the label, so all 4 numbers are features
+def divide_classification_binary(data):
+	classes = data.pop(4)
+	classes.reset_index(drop=True, inplace=True) #need this to get by index
+	n = classes.size
+	#0-1 vector for setosa or not.
+	Y = np.zeros((n,1))
+	for i in range(n):
+		if classes[i] == "Iris-setosa":
+			Y[i] = 1
+	X = np.array(data)
+	X_aug = augment(X)
+	return (X_aug, Y)
 
 #whatever statistics we want: accuracy etc 
 def statistics():
 	return
+
+#one-hot classification into three classes
+def classify_one_hot(train_fraction, loss, grad, compare_grad=None):
+	fulldata = pd.read_csv(INPUT_PATH, header=None)
+	train_data = fulldata.sample(frac=train_fraction)
+	test_data = fulldata.drop(train_data.index)
+
+	train_X_aug, train_Y = divide_classification_one_hot(train_data)
+	test_X_aug, test_Y = divide_classification_one_hot(test_data)
+
+	weights = train_gradient_descent(train_X_aug, train_Y, loss, grad, INITIAL_ETA, ETA_DIVISION, EPOCH_LENGTH, NUM_EPOCHS, compare_grad)
+	predictions_train = predict_linear_all(train_X_aug, weights)
+
+	train_loss = loss(train_X_aug, train_Y, weights)
+	print("\nloss on training set: "+str(train_loss))
+	print("truth - prediction")
+	print(np.concatenate((train_Y, predictions_train), axis = 1))
+
+	predictions_test = predict_linear_all(test_X_aug, weights)
+	test_loss = loss(test_X_aug, test_Y, weights)
+	print("\nloss on test set: "+str(test_loss))
+	print("truth - prediction")
+	print(np.concatenate((test_Y, predictions_test), axis = 1))
+
+#class is the label, so all 4 numbers are features
+def divide_classification_one_hot(data):
+	classes = data.pop(4)
+	classes.reset_index(drop=True, inplace=True) #need this to get by index
+	n = classes.size
+	#one-hot vector for the classes
+	Y = np.zeros((n, NUM_CLASSES))
+	for i in range(n):
+		index = CLASS_NAMES.index(classes[i])
+		Y[i][index] = 1
+	X = np.array(data)
+	X_aug = augment(X)
+	return (X_aug, Y)
+
 
 #augmented form for calculations with bias: add a column of 1 at the beginning
 #original is a numpy 2d array
@@ -263,7 +346,9 @@ def divide_2_feature_2_label(data):
 	return (X_aug, Y)
 
 def main():
-	#single_test_train(0.7, mean_squared_loss_weights,numerical_gradient_of(mean_squared_loss_weights))
+	#single_test_train(0.7, mean_squared_loss_weights, numerical_gradient_of(mean_squared_loss_weights), compare_grad = mean_squared_gradient)
 	#single_test_train(0.7, mean_squared_loss_weights, mean_squared_gradient)
-	#two_numerical_targets_regression(0.7, multi_target_mean_squared_loss_weights, numerical_gradient_of(multi_target_mean_squared_loss_weights))
-	two_numerical_targets_regression(0.7, multi_target_mean_squared_loss_weights, multi_target_mean_squared_gradient, compare_grad = numerical_gradient_of(multi_target_mean_squared_loss_weights))
+	#two_numerical_targets_regression(0.7, multi_target_mean_squared_loss_weights, numerical_gradient_of(multi_target_mean_squared_loss_weights))#, compare_grad = multi_target_mean_squared_gradient)
+	#two_numerical_targets_regression(0.7, multi_target_mean_squared_loss_weights, multi_target_mean_squared_gradient, compare_grad = numerical_gradient_of(multi_target_mean_squared_loss_weights))
+	#classify_binary(0.7, mean_squared_loss_weights, mean_squared_gradient)
+	classify_one_hot(0.7, multi_target_mean_squared_loss_weights, multi_target_mean_squared_gradient)
